@@ -112,11 +112,12 @@ def fetch_twitter_rss() -> list[dict]:
     return items
 
 
-def _enrich_with_trafilatura(items: list[dict]) -> list[dict]:
+def enrich_items(items: list[dict]) -> None:
+    """Fetch full article text with trafilatura. Mutates items in-place."""
     if not HAS_TRAFILATURA:
-        return items
+        return
     enrichable = [i for i in items if i.get("type") not in ("youtube", "github")]
-    print(f"[trafilatura] enriching {len(enrichable)}/{len(items)} items...")
+    print(f"[trafilatura] enriching {len(enrichable)} items...")
     enriched = 0
     for item in enrichable:
         try:
@@ -129,22 +130,21 @@ def _enrich_with_trafilatura(items: list[dict]) -> list[dict]:
         except Exception:
             pass
         time.sleep(0.3)
-    print(f"[trafilatura] enriched {enriched} items with full text")
-    return items
+    print(f"[trafilatura] enriched {enriched}/{len(enrichable)} items")
 
 
 def collect_all_ai() -> list[dict]:
     print("[collect] AI Brief...")
     items = fetch_rss() + fetch_youtube() + fetch_github()
     print(f"[collect] {len(items)} raw items")
-    return _enrich_with_trafilatura(items)
+    return items
 
 
 def collect_all_world() -> list[dict]:
     print("[collect] World Brief...")
     items = fetch_rss(feeds=WORLD_RSS_FEEDS)
     print(f"[collect] {len(items)} raw items")
-    return _enrich_with_trafilatura(items)
+    return items
 
 
 def collect_all() -> list[dict]:

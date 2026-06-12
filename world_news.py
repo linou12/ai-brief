@@ -3,7 +3,7 @@ load_dotenv()
 
 from datetime import datetime
 from config import WORLD_TOPICS, MAX_WORLD_ITEMS_PER_TOPIC
-from src.collector import collect_all_world
+from src.collector import collect_all_world, enrich_items
 from src.sender import send
 from src.summarizer import deduplicate, score_and_select, _call_groq
 
@@ -95,6 +95,9 @@ def filter_and_summarize(items: list[dict]) -> dict[str, list]:
 
     for topic, bucket in grouped.items():
         grouped[topic] = score_and_select(bucket, topic, MAX_WORLD_ITEMS_PER_TOPIC)
+
+    winners = [item for bucket in grouped.values() for item in bucket]
+    enrich_items(winners)
 
     for bucket in grouped.values():
         for item in bucket:
