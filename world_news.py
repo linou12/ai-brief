@@ -4,7 +4,7 @@ load_dotenv()
 
 from datetime import datetime
 import httpx
-from config import WORLD_RSS_FEEDS, WORLD_TOPICS, MAX_WORLD_ITEMS_PER_TOPIC, SUMMARY_LANGUAGE
+from config import WORLD_RSS_FEEDS, WORLD_TOPICS, MAX_WORLD_ITEMS_PER_TOPIC
 from src.collector import fetch_rss
 from src.sender import send
 
@@ -22,6 +22,38 @@ TOPIC_LABELS = {
     "science":         "Science",
 }
 
+PROMPT_BY_TOPIC = {
+    "geopolitique": """You are a world news curator writing for someone who wants to understand global news deeply.
+Assume the reader may not have background context on this conflict or region.
+Summarize in 4 sentences in English.
+Sentence 1: what happened today concretely (who, where, what).
+Sentence 2: the historical or political context needed to understand why this matters.
+Sentence 3: who are the key actors and what are their interests.
+Sentence 4: what to watch next.""",
+
+    "tech_economie": """You are a tech and economics journalist writing for a smart generalist reader.
+Summarize in 3 sentences in English.
+Sentence 1: what happened (company, deal, number, product).
+Sentence 2: the broader economic or industry context — why now, why this matters.
+Sentence 3: who wins, who loses, or what shifts as a result.""",
+
+    "societe_culture": """You are a progressive journalist writing for a curious, open-minded reader.
+Summarize in 3 sentences in English.
+Sentence 1: what happened concretely.
+Sentence 2: the deeper social or structural issue behind this news.
+Sentence 3: different perspectives or the ongoing debate around this.""",
+
+    "science": """You are a science communicator writing for a curious non-expert.
+Summarize in 3 sentences in English.
+Sentence 1: what was discovered or published, by who, and the core finding.
+Sentence 2: explain the concept simply — no jargon, use an analogy if helpful.
+Sentence 3: why it matters for society or what could come next.""",
+}
+
+DEFAULT_PROMPT = """You are a world news curator writing for a curious, intelligent reader.
+Summarize in 3 sentences in English.
+Give concrete facts, explain the context, and say why it matters."""
+
 
 def _assign_topic(item: dict) -> str | None:
     text = (item["title"] + " " + item["summary"]).lower()
@@ -34,36 +66,38 @@ def _assign_topic(item: dict) -> str | None:
 def _summarize(item: dict) -> str:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        return item["summary"][:200]
-    prompt = f"""You are a world news curator writing for a curious, educated reader.
-Summarize this news item in 2 sentences in {SUMMARY_LANGUAGE}.
-Be concrete — mention names, places, stakes. Never start with "This article".
+        return item["summary"][:300]
+
+    topic = item.get("topic", "")
+    system = PROMPT_BY_TOPIC.get(topic, DEFAULT_PROMPT)
+    prompt = f"""{system}
 
 Title: {item['title']}
 Source: {item['source']}
-Content: {item['summary'][:800]}
+Content: {item['summary'][:1200]}
 
-2-sentence summary:"""
+Summary:"""
+
     try:
         r = httpx.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"},
             json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_completion_tokens": 200,
-                "temperature": 0.3,
+                "model":                 "llama-3.3-70b-versatile",
+                "messages":              [{"role": "user", "content": prompt}],
+                "max_completion_tokens": 350,
+                "temperature":           0.3,
             },
             timeout=30,
         )
         r.raise_for_status()
         data = r.json()
         if "choices" not in data:
-            return item["summary"][:200]
+            return item["summary"][:300]
         return data["choices"][0]["message"]["content"]
     except Exception as e:
         print(f"[world] LLM failed for '{item['title']}': {e}")
-        return item["summary"][:200]
+        return item["summary"][:300]
 
 
 def filter_and_summarize(items: list[dict]) -> dict[str, list]:
@@ -71,6 +105,7 @@ def filter_and_summarize(items: list[dict]) -> dict[str, list]:
     for item in items:
         topic = _assign_topic(item)
         if topic and len(grouped[topic]) < MAX_WORLD_ITEMS_PER_TOPIC:
+            item["topic"] = topic
             grouped[topic].append(item)
 
     matched = sum(len(v) for v in grouped.values())
@@ -102,7 +137,7 @@ def build_email(digest: dict[str, list]) -> tuple[str, str]:
                     {item['title']}
                 </a>
                 <p style="margin:10px 0 0;font-size:14px;color:#444;line-height:1.6">
-                    {item.get('ai_summary') or item.get('summary', '')[:200]}
+                    {item.get('ai_summary') or item.get('summary', '')[:300]}
                 </p>
             </div>"""
         sections += f"""
