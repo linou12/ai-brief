@@ -18,9 +18,9 @@ def is_recent(entry) -> bool:
     return True  # si pas de date, on garde
 
 
-def fetch_rss() -> list[dict]:
+def fetch_rss(feeds: list[str] | None = None) -> list[dict]:
     items = []
-    for url in RSS_FEEDS:
+    for url in (feeds or RSS_FEEDS):
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries:
@@ -40,9 +40,6 @@ def fetch_rss() -> list[dict]:
 
 
 def fetch_youtube() -> list[dict]:
-    if not YOUTUBE_API_KEY:
-        print("[YouTube] no API key, skipping")
-        return []
     items = []
     for channel in YOUTUBE_CHANNELS:
         try:

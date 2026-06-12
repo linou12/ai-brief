@@ -1,0 +1,30 @@
+name: Daily World Brief
+
+on:
+  schedule:
+    - cron: '0 6 * * 1-5'  # 7h Paris (UTC+1), lundi au vendredi
+  workflow_dispatch:
+
+jobs:
+  send-brief:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run world news brief
+        env:
+          GROQ_API_KEY:       ${{ secrets.GROQ_API_KEY }}
+          GMAIL_ADDRESS:      ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAILS:   ${{ secrets.RECIPIENT_EMAILS }}
+        run: python world_news.py
