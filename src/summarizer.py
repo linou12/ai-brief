@@ -3,6 +3,7 @@
 import os
 import json
 import re
+import time
 import httpx
 from config import TOPICS, MAX_ITEMS_PER_TOPIC
 
@@ -196,6 +197,7 @@ Content: {item['summary'][:1200]}
 Summary:"""
 
     try:
+        time.sleep(0.5)
         return _call_groq(prompt)
     except Exception as e:
         print(f"[summarizer] LLM failed for '{item['title']}': {e}")

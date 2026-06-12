@@ -2,8 +2,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from datetime import datetime
-from config import WORLD_RSS_FEEDS, WORLD_TOPICS, MAX_WORLD_ITEMS_PER_TOPIC
-from src.collector import fetch_rss
+from config import WORLD_TOPICS, MAX_WORLD_ITEMS_PER_TOPIC
+from src.collector import collect_all_world
 from src.sender import send
 from src.summarizer import deduplicate, score_and_select, _call_groq
 
@@ -166,9 +166,7 @@ def build_email(digest: dict[str, list]) -> tuple[str, str]:
 
 def main():
     print("--- world-brief starting ---")
-    print("collecting world news...")
-    items = fetch_rss(feeds=WORLD_RSS_FEEDS)
-    print(f"collected {len(items)} items")
+    items = collect_all_world()
 
     digest = filter_and_summarize(items)
     print("summarization done")
