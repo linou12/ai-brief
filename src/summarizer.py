@@ -117,7 +117,7 @@ def deduplicate(items: list[dict], threshold: float = 0.35) -> list[dict]:
 
     removed = len(items) - len(merged)
     if removed:
-        print(f"[dedup] merged {removed} duplicates → {len(merged)} unique items")
+        print(f"[dedup] merged {removed} duplicates -> {len(merged)} unique items")
     return merged
 
 

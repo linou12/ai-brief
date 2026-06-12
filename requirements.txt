@@ -2,4 +2,3 @@ feedparser
 httpx
 python-dotenv
 trafilatura
-praw

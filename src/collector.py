@@ -13,15 +13,7 @@ try:
 except ImportError:
     HAS_TRAFILATURA = False
 
-try:
-    import praw
-    HAS_PRAW = True
-except ImportError:
-    HAS_PRAW = False
-
 CUTOFF_HOURS = 24
-REDDIT_AI_SUBS    = ["MachineLearning", "LocalLLaMA", "artificial", "ChatGPT", "singularity", "StableDiffusion"]
-REDDIT_WORLD_SUBS = ["worldnews", "europe", "france", "environment", "science", "geopolitics", "economics"]
 
 
 def is_recent(entry) -> bool:
@@ -120,59 +112,10 @@ def fetch_twitter_rss() -> list[dict]:
     return items
 
 
-def _fetch_reddit(subreddits: list[str], min_score: int, max_per_sub: int) -> list[dict]:
-    if not HAS_PRAW:
-        return []
-    client_id     = os.getenv("REDDIT_CLIENT_ID")
-    client_secret = os.getenv("REDDIT_CLIENT_SECRET")
-    if not (client_id and client_secret):
-        return []
-    user_agent = os.getenv("REDDIT_USER_AGENT", "ai-brief/1.0")
-    try:
-        reddit = praw.Reddit(
-            client_id=client_id,
-            client_secret=client_secret,
-            user_agent=user_agent,
-        )
-        items = []
-        for sub_name in subreddits:
-            try:
-                count = 0
-                for post in reddit.subreddit(sub_name).top(time_filter="day", limit=20):
-                    if post.score < min_score:
-                        continue
-                    items.append({
-                        "source":    f"r/{sub_name}",
-                        "title":     post.title,
-                        "url":       post.url,
-                        "summary":   post.selftext[:1000] if post.selftext else post.title,
-                        "published": datetime.fromtimestamp(post.created_utc, tz=timezone.utc).isoformat(),
-                        "type":      "reddit",
-                    })
-                    count += 1
-                    if count >= max_per_sub:
-                        break
-            except Exception as e:
-                print(f"[Reddit] failed r/{sub_name}: {e}")
-        return items
-    except Exception as e:
-        print(f"[Reddit] init failed: {e}")
-        return []
-
-
-def fetch_reddit_ai() -> list[dict]:
-    return _fetch_reddit(REDDIT_AI_SUBS, min_score=50, max_per_sub=5)
-
-
-def fetch_reddit_world() -> list[dict]:
-    return _fetch_reddit(REDDIT_WORLD_SUBS, min_score=100, max_per_sub=5)
-
-
 def _enrich_with_trafilatura(items: list[dict]) -> list[dict]:
     if not HAS_TRAFILATURA:
         return items
-    # Skip sources that already have good native text
-    enrichable = [i for i in items if i.get("type") not in ("youtube", "reddit", "github")]
+    enrichable = [i for i in items if i.get("type") not in ("youtube", "github")]
     print(f"[trafilatura] enriching {len(enrichable)}/{len(items)} items...")
     enriched = 0
     for item in enrichable:
@@ -192,14 +135,14 @@ def _enrich_with_trafilatura(items: list[dict]) -> list[dict]:
 
 def collect_all_ai() -> list[dict]:
     print("[collect] AI Brief...")
-    items = fetch_rss() + fetch_youtube() + fetch_github() + fetch_reddit_ai()
+    items = fetch_rss() + fetch_youtube() + fetch_github()
     print(f"[collect] {len(items)} raw items")
     return _enrich_with_trafilatura(items)
 
 
 def collect_all_world() -> list[dict]:
     print("[collect] World Brief...")
-    items = fetch_rss(feeds=WORLD_RSS_FEEDS) + fetch_reddit_world()
+    items = fetch_rss(feeds=WORLD_RSS_FEEDS)
     print(f"[collect] {len(items)} raw items")
     return _enrich_with_trafilatura(items)
 
