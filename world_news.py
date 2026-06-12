@@ -1,12 +1,11 @@
-import os
 from dotenv import load_dotenv
 load_dotenv()
 
 from datetime import datetime
-import httpx
 from config import WORLD_RSS_FEEDS, WORLD_TOPICS, MAX_WORLD_ITEMS_PER_TOPIC
 from src.collector import fetch_rss
 from src.sender import send
+from src.summarizer import deduplicate, score_and_select, _call_groq
 
 TOPIC_ICONS = {
     "geopolitique":    "🌍",
@@ -64,10 +63,6 @@ def _assign_topic(item: dict) -> str | None:
 
 
 def _summarize(item: dict) -> str:
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        return item["summary"][:300]
-
     topic = item.get("topic", "")
     system = PROMPT_BY_TOPIC.get(topic, DEFAULT_PROMPT)
     prompt = f"""{system}
@@ -79,37 +74,27 @@ Content: {item['summary'][:1200]}
 Summary:"""
 
     try:
-        r = httpx.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"},
-            json={
-                "model":                 "llama-3.3-70b-versatile",
-                "messages":              [{"role": "user", "content": prompt}],
-                "max_completion_tokens": 350,
-                "temperature":           0.3,
-            },
-            timeout=30,
-        )
-        r.raise_for_status()
-        data = r.json()
-        if "choices" not in data:
-            return item["summary"][:300]
-        return data["choices"][0]["message"]["content"]
+        return _call_groq(prompt)
     except Exception as e:
         print(f"[world] LLM failed for '{item['title']}': {e}")
         return item["summary"][:300]
 
 
 def filter_and_summarize(items: list[dict]) -> dict[str, list]:
+    items = deduplicate(items)
+
     grouped: dict[str, list] = {t: [] for t in WORLD_TOPICS}
     for item in items:
         topic = _assign_topic(item)
-        if topic and len(grouped[topic]) < MAX_WORLD_ITEMS_PER_TOPIC:
+        if topic:
             item["topic"] = topic
             grouped[topic].append(item)
 
     matched = sum(len(v) for v in grouped.values())
     print(f"[world] {matched}/{len(items)} items matched a topic")
+
+    for topic, bucket in grouped.items():
+        grouped[topic] = score_and_select(bucket, topic, MAX_WORLD_ITEMS_PER_TOPIC)
 
     for bucket in grouped.values():
         for item in bucket:
@@ -129,7 +114,11 @@ def build_email(digest: dict[str, list]) -> tuple[str, str]:
         icon = TOPIC_ICONS.get(topic, "•")
         cards = ""
         for item in items:
-            badge = f'<span style="background:#f0f0f0;padding:2px 8px;border-radius:12px;font-size:12px;color:#666">{item["source"]}</span>'
+            sources = item["source"]
+            badge = " ".join(
+                f'<span style="background:#f0f0f0;padding:2px 8px;border-radius:12px;font-size:12px;color:#666">{s.strip()}</span>'
+                for s in sources.split("·")
+            )
             cards += f"""
             <div style="border:1px solid #eee;border-radius:10px;padding:16px 20px;margin-bottom:12px;background:#fff">
                 <div style="margin-bottom:8px">{badge}</div>

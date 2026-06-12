@@ -1,8 +1,16 @@
 # src/summarizer.py
 
 import os
+import json
+import re
 import httpx
 from config import TOPICS, MAX_ITEMS_PER_TOPIC
+
+STOPWORDS = {
+    "a", "an", "the", "in", "on", "at", "to", "for", "of", "and", "or",
+    "is", "are", "was", "were", "with", "how", "why", "what", "new", "says",
+    "say", "its", "this", "that", "from", "has", "have", "will", "can", "by",
+}
 
 PROMPT_BY_TOPIC = {
     "agents": """You are an AI news curator for a junior AI engineer.
@@ -73,6 +81,75 @@ def _call_groq(prompt: str) -> str:
     return data["choices"][0]["message"]["content"]
 
 
+def deduplicate(items: list[dict], threshold: float = 0.35) -> list[dict]:
+    def key_words(title: str) -> set[str]:
+        return {w for w in title.lower().split() if len(w) > 3 and w not in STOPWORDS}
+
+    groups: list[list[dict]] = []
+    used: set[int] = set()
+
+    for i, item in enumerate(items):
+        if i in used:
+            continue
+        words_i = key_words(item["title"])
+        group = [item]
+        for j, other in enumerate(items[i + 1:], i + 1):
+            if j in used:
+                continue
+            words_j = key_words(other["title"])
+            inter = words_i & words_j
+            union = words_i | words_j
+            if inter and union and len(inter) / len(union) >= threshold:
+                group.append(other)
+                used.add(j)
+        used.add(i)
+        groups.append(group)
+
+    merged = []
+    for group in groups:
+        if len(group) == 1:
+            merged.append(group[0])
+        else:
+            best = dict(max(group, key=lambda x: len(x.get("summary", ""))))
+            best["source"] = " · ".join(dict.fromkeys(x["source"] for x in group))
+            merged.append(best)
+
+    removed = len(items) - len(merged)
+    if removed:
+        print(f"[dedup] merged {removed} duplicates → {len(merged)} unique items")
+    return merged
+
+
+def score_and_select(items: list[dict], topic: str, max_items: int) -> list[dict]:
+    if len(items) <= max_items:
+        return items
+
+    titles_block = "\n".join(f"{i + 1}. {item['title']}" for i, item in enumerate(items))
+    prompt = f"""Rate each headline 1-10 for importance and relevance to "{topic}" news.
+10 = major development everyone should know. 1 = minor or irrelevant.
+Return ONLY a JSON array of integers like [8, 3, 9, ...], one score per headline in the same order. No explanation.
+
+Headlines:
+{titles_block}
+
+Scores:"""
+
+    try:
+        raw = _call_groq(prompt)
+        match = re.search(r'\[[\d,\s]+\]', raw)
+        if match:
+            scores = json.loads(match.group())
+            if len(scores) == len(items):
+                top = sorted(scores, reverse=True)[:max_items]
+                print(f"[scoring] topic={topic}: top scores {top}")
+                scored = sorted(zip(scores, items), key=lambda x: x[0], reverse=True)
+                return [item for _, item in scored[:max_items]]
+    except Exception as e:
+        print(f"[scoring] failed for topic={topic}: {e}")
+
+    return items[:max_items]
+
+
 def assign_topic(item: dict) -> str | None:
     text = (item["title"] + " " + item["summary"]).lower()
     for topic, keywords in TOPICS.items():
@@ -82,7 +159,9 @@ def assign_topic(item: dict) -> str | None:
 
 
 def filter_and_summarize(items: list[dict]) -> dict[str, list]:
-    tagged = []
+    items = deduplicate(items)
+
+    tagged: list[dict] = []
     for item in items:
         topic = assign_topic(item)
         if topic:
@@ -93,9 +172,10 @@ def filter_and_summarize(items: list[dict]) -> dict[str, list]:
 
     grouped: dict[str, list] = {topic: [] for topic in TOPICS}
     for item in tagged:
-        bucket = grouped[item["topic"]]
-        if len(bucket) < MAX_ITEMS_PER_TOPIC:
-            bucket.append(item)
+        grouped[item["topic"]].append(item)
+
+    for topic, bucket in grouped.items():
+        grouped[topic] = score_and_select(bucket, topic, MAX_ITEMS_PER_TOPIC)
 
     for topic, bucket in grouped.items():
         for item in bucket:
@@ -107,7 +187,6 @@ def filter_and_summarize(items: list[dict]) -> dict[str, list]:
 def _summarize_item(item: dict) -> str:
     topic = item.get("topic", "")
     system = PROMPT_BY_TOPIC.get(topic, DEFAULT_PROMPT)
-
     prompt = f"""{system}
 
 Title: {item['title']}
