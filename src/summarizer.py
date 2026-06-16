@@ -144,8 +144,47 @@ Scores:"""
     return items[:max_items]
 
 
+def _cluster_duplicates(items: list[dict], topic: str) -> list[dict]:
+    """LLM groups semantically identical stories, keeps best per group."""
+    if len(items) <= 1:
+        return items
+    titles_block = "\n".join(f"{i + 1}. {item['title']}" for i, item in enumerate(items))
+    prompt = f"""Below are {len(items)} news headlines about "{topic}".
+Some may cover the exact same story from different sources.
+Group the duplicates. Return a JSON array of arrays with 1-based indices.
+Example: [[1,3],[2],[4,5]] means 1&3 are the same story, 2 is unique, 4&5 are the same story.
+
+Headlines:
+{titles_block}
+
+Groups (JSON only):"""
+    try:
+        raw = _call_groq(prompt)
+        match = re.search(r'\[\s*\[.*?\]\s*\]', raw, re.DOTALL)
+        if match:
+            groups = json.loads(match.group())
+            merged = []
+            for group in groups:
+                group_items = [items[i - 1] for i in group if 0 < i <= len(items)]
+                if not group_items:
+                    continue
+                if len(group_items) == 1:
+                    merged.append(group_items[0])
+                else:
+                    best = dict(max(group_items, key=lambda x: len(x.get("summary") or "")))
+                    best["source"] = " · ".join(dict.fromkeys(x["source"] for x in group_items))
+                    merged.append(best)
+            removed = len(items) - len(merged)
+            if removed:
+                print(f"[cluster] topic={topic}: merged {removed} semantic duplicates -> {len(merged)} unique")
+            return merged
+    except Exception as e:
+        print(f"[cluster] failed for topic={topic}: {e}")
+    return items
+
+
 def assign_topic(item: dict) -> str | None:
-    text = (item["title"] + " " + item["summary"]).lower()
+    text = ((item.get("title") or "") + " " + (item.get("summary") or "")).lower()
     for topic, keywords in TOPICS.items():
         if any(kw in text for kw in keywords):
             return topic
@@ -169,6 +208,9 @@ def filter_and_summarize(items: list[dict]) -> dict[str, list]:
         grouped[item["topic"]].append(item)
 
     for topic, bucket in grouped.items():
+        grouped[topic] = _cluster_duplicates(bucket, topic)
+
+    for topic, bucket in grouped.items():
         grouped[topic] = score_and_select(bucket, topic, MAX_ITEMS_PER_TOPIC)
 
     winners = [item for bucket in grouped.values() for item in bucket]
@@ -186,9 +228,9 @@ def _summarize_item(item: dict) -> str:
     system = PROMPT_BY_TOPIC.get(topic, DEFAULT_PROMPT)
     prompt = f"""{system}
 
-Title: {item['title']}
-Source: {item['source']}
-Content: {item['summary'][:1200]}
+Title: {item.get('title') or ''}
+Source: {item.get('source') or ''}
+Content: {(item.get('summary') or '')[:1200]}
 
 Summary:"""
 
@@ -196,5 +238,5 @@ Summary:"""
         time.sleep(0.5)
         return _call_groq(prompt)
     except Exception as e:
-        print(f"[summarizer] LLM failed for '{item['title']}': {e}")
-        return item["summary"][:300]
+        print(f"[summarizer] LLM failed for '{item.get('title')}': {e}")
+        return (item.get("summary") or "")[:300]

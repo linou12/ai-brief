@@ -8,7 +8,7 @@ from config import WORLD_TOPICS, MAX_WORLD_ITEMS_PER_TOPIC
 ZURICH_TZ = ZoneInfo("Europe/Zurich")
 from src.collector import collect_all_world, enrich_items
 from src.sender import send
-from src.summarizer import deduplicate, score_and_select, _call_groq
+from src.summarizer import deduplicate, score_and_select, _call_groq, _cluster_duplicates
 
 TOPIC_ICONS = {
     "geopolitique":    "🌍",
@@ -95,6 +95,9 @@ def filter_and_summarize(items: list[dict]) -> dict[str, list]:
 
     matched = sum(len(v) for v in grouped.values())
     print(f"[world] {matched}/{len(items)} items matched a topic")
+
+    for topic, bucket in grouped.items():
+        grouped[topic] = _cluster_duplicates(bucket, topic)
 
     for topic, bucket in grouped.items():
         grouped[topic] = score_and_select(bucket, topic, MAX_WORLD_ITEMS_PER_TOPIC)
