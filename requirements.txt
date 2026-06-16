@@ -2,3 +2,4 @@ feedparser
 httpx
 python-dotenv
 trafilatura
+tavily-python

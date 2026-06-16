@@ -28,4 +28,5 @@ jobs:
           GMAIL_APP_PASSWORD:    ${{ secrets.GMAIL_APP_PASSWORD }}
           RECIPIENT_EMAILS:      ${{ secrets.RECIPIENT_EMAILS }}
           GITHUB_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
+          TAVILY_API_KEY:        ${{ secrets.TAVILY_API_KEY }}
         run: python newsletter.py
