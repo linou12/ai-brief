@@ -68,18 +68,29 @@ def fetch_youtube() -> list[dict]:
 
 def fetch_github() -> list[dict]:
     items = []
+    seen_urls: set[str] = set()
     try:
         github_token = os.getenv("GITHUB_TOKEN")
         headers = {"Authorization": f"token {github_token}"} if github_token else {}
-        cutoff = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        cutoff     = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        new_cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
         for topic in GITHUB_TOPICS:
-            url = f"https://api.github.com/search/repositories?q=topic:{topic}+pushed:>{cutoff}&sort=stars&order=desc&per_page=3"
+            # Only repos created in the last 30 days that were also pushed yesterday
+            url = (
+                f"https://api.github.com/search/repositories"
+                f"?q=topic:{topic}+pushed:>{cutoff}+created:>{new_cutoff}"
+                f"&sort=stars&order=desc&per_page=5"
+            )
             r = httpx.get(url, headers=headers, timeout=10)
             for repo in r.json().get("items", []):
+                repo_url = repo["html_url"]
+                if repo_url in seen_urls:
+                    continue
+                seen_urls.add(repo_url)
                 items.append({
                     "source":    "GitHub",
                     "title":     repo["full_name"],
-                    "url":       repo["html_url"],
+                    "url":       repo_url,
                     "summary":   repo.get("description", ""),
                     "published": repo.get("pushed_at", ""),
                     "stars":     repo.get("stargazers_count", 0),

@@ -2,7 +2,7 @@ name: Daily World Brief
 
 on:
   schedule:
-    - cron: '0 6 * * 1-5'  # 7h Paris (UTC+1), lundi au vendredi
+    - cron: '0 7 * * 1-5'  # 9h Zurich (UTC+2 en été), lundi au vendredi
   workflow_dispatch:
 
 jobs:

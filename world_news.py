@@ -2,7 +2,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from config import WORLD_TOPICS, MAX_WORLD_ITEMS_PER_TOPIC
+
+ZURICH_TZ = ZoneInfo("Europe/Zurich")
 from src.collector import collect_all_world, enrich_items
 from src.sender import send
 from src.summarizer import deduplicate, score_and_select, _call_groq
@@ -22,36 +25,36 @@ TOPIC_LABELS = {
 }
 
 PROMPT_BY_TOPIC = {
-    "geopolitique": """You are a world news curator writing for someone who wants to understand global news deeply.
-Assume the reader may not have background context on this conflict or region.
-Summarize in 4 sentences in English.
-Sentence 1: what happened today concretely (who, where, what).
-Sentence 2: the historical or political context needed to understand why this matters.
-Sentence 3: who are the key actors and what are their interests.
-Sentence 4: what to watch next.""",
+    "geopolitique": """Tu es un journaliste monde qui écrit pour quelqu'un qui veut comprendre l'actualité en profondeur.
+Suppose que le lecteur n'a pas nécessairement le contexte historique ou géographique.
+Résume en 4 phrases en français.
+Phrase 1 : ce qui s'est passé concrètement aujourd'hui (qui, où, quoi).
+Phrase 2 : le contexte historique ou politique nécessaire pour comprendre pourquoi c'est important.
+Phrase 3 : qui sont les acteurs clés et quels sont leurs intérêts.
+Phrase 4 : ce qu'il faut surveiller ensuite.""",
 
-    "tech_economie": """You are a tech and economics journalist writing for a smart generalist reader.
-Summarize in 3 sentences in English.
-Sentence 1: what happened (company, deal, number, product).
-Sentence 2: the broader economic or industry context — why now, why this matters.
-Sentence 3: who wins, who loses, or what shifts as a result.""",
+    "tech_economie": """Tu es un journaliste tech et économie qui écrit pour un lecteur curieux et intelligent.
+Résume en 3 phrases en français.
+Phrase 1 : ce qui s'est passé (entreprise, deal, chiffre, produit).
+Phrase 2 : le contexte économique ou sectoriel — pourquoi maintenant, pourquoi c'est important.
+Phrase 3 : qui gagne, qui perd, ou ce qui change en conséquence.""",
 
-    "societe_culture": """You are a progressive journalist writing for a curious, open-minded reader.
-Summarize in 3 sentences in English.
-Sentence 1: what happened concretely.
-Sentence 2: the deeper social or structural issue behind this news.
-Sentence 3: different perspectives or the ongoing debate around this.""",
+    "societe_culture": """Tu es un journaliste progressiste qui écrit pour un lecteur curieux et ouvert d'esprit.
+Résume en 3 phrases en français.
+Phrase 1 : ce qui s'est passé concrètement.
+Phrase 2 : le problème social ou structurel plus profond derrière cette actualité.
+Phrase 3 : les différentes perspectives ou le débat en cours autour de ce sujet.""",
 
-    "science": """You are a science communicator writing for a curious non-expert.
-Summarize in 3 sentences in English.
-Sentence 1: what was discovered or published, by who, and the core finding.
-Sentence 2: explain the concept simply — no jargon, use an analogy if helpful.
-Sentence 3: why it matters for society or what could come next.""",
+    "science": """Tu es un vulgarisateur scientifique qui écrit pour un lecteur curieux mais non-expert.
+Résume en 3 phrases en français.
+Phrase 1 : ce qui a été découvert ou publié, par qui, et la conclusion principale.
+Phrase 2 : explique le concept simplement — sans jargon, utilise une analogie si utile.
+Phrase 3 : pourquoi c'est important pour la société ou ce qui pourrait venir ensuite.""",
 }
 
-DEFAULT_PROMPT = """You are a world news curator writing for a curious, intelligent reader.
-Summarize in 3 sentences in English.
-Give concrete facts, explain the context, and say why it matters."""
+DEFAULT_PROMPT = """Tu es un journaliste monde qui écrit pour un lecteur curieux et intelligent.
+Résume en 3 phrases en français.
+Donne des faits concrets, explique le contexte, et dis pourquoi c'est important."""
 
 
 def _assign_topic(item: dict) -> str | None:
@@ -107,7 +110,7 @@ def filter_and_summarize(items: list[dict]) -> dict[str, list]:
 
 
 def build_email(digest: dict[str, list]) -> tuple[str, str]:
-    date_str = datetime.now().strftime("%A %d %B %Y")
+    date_str = datetime.now(ZURICH_TZ).strftime("%A %d %B %Y")
     total = sum(len(v) for v in digest.values())
     subject = f"World Brief — {date_str} — {total} stories to know"
 
