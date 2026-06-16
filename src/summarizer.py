@@ -15,46 +15,38 @@ STOPWORDS = {
 }
 
 PROMPT_BY_TOPIC = {
-    "agents": """You are an AI news curator for a junior AI engineer.
-Summarize in 3 sentences in English.
-Sentence 1: what happened concretely (names, numbers, tool names).
-Sentence 2: why it matters for someone building AI products today.
-Sentence 3: one thing to watch or try.""",
+    "agents": """You are an AI news curator. Summarize in 3 sentences in English.
+Sentence 1: what was released or announced — which framework, tool, or capability, by who.
+Sentence 2: what it enables that wasn't possible before, with concrete details.
+Sentence 3: the one thing worth remembering from this news.""",
 
-    "models": """You are an AI news curator for a junior AI engineer.
-Summarize in 3 sentences in English.
-Sentence 1: what model/release/benchmark, by who, key numbers.
-Sentence 2: how it compares to what existed before.
-Sentence 3: who should care and why.""",
+    "models": """You are an AI news curator. Summarize in 3 sentences in English.
+Sentence 1: which model, released by who, key specs or benchmark numbers.
+Sentence 2: how it compares to the previous best option on the same task.
+Sentence 3: what concretely changes with this release.""",
 
-    "tools": """You are an AI news curator for a developer who builds AI pipelines.
-Summarize in 3 sentences in English.
-Sentence 1: what tool/library/framework, what it does, who made it.
-Sentence 2: what problem it solves better than existing options.
-Sentence 3: how to get started or what to look at first.""",
+    "tools": """You are an AI news curator. Summarize in 3 sentences in English.
+Sentence 1: what was released — tool, library, or framework — by who, and what it does.
+Sentence 2: what problem it solves and how it differs from existing options.
+Sentence 3: one concrete thing worth trying or watching.""",
 
-    "industry": """You are an AI news curator for a junior consultant interested in AI strategy.
-Summarize in 4 sentences in English.
-Sentence 1: what happened (company, deal, product, amount).
-Sentence 2: the business context — why this company, why now.
-Sentence 3: what it means for the AI industry broadly.
-Sentence 4: what a consultant should remember from this.""",
+    "industry": """You are an AI news curator. Summarize in 3 sentences in English.
+Sentence 1: what happened — company, deal, product launch, or amount.
+Sentence 2: the business context: why this company, why now.
+Sentence 3: what it signals for the AI industry.""",
 
-    "research": """You are an AI research explainer writing for a developer, not an academic.
-Summarize in 3 sentences in English.
-Sentence 1: what was published, by who, and the core claim.
-Sentence 2: explain the key idea simply — no jargon.
-Sentence 3: why practitioners should care and what it might change.""",
+    "research": """You are an AI news curator. Summarize in 3 sentences in English.
+Sentence 1: what was published, by who, and the main finding.
+Sentence 2: the key idea in plain language — no jargon.
+Sentence 3: what this changes or what it opens up.""",
 
-    "regulation": """You are a policy analyst writing for a developer who needs to stay compliant.
-Summarize in 3 sentences in English.
-Sentence 1: what regulation/law/decision, where, by who.
+    "regulation": """You are an AI news curator. Summarize in 3 sentences in English.
+Sentence 1: what regulation, law, or decision — where, by who.
 Sentence 2: what it concretely changes or prohibits.
-Sentence 3: who is affected and what they need to do.""",
+Sentence 3: who is affected and the likely consequences.""",
 }
 
-DEFAULT_PROMPT = """You are a news curator writing for a curious, intelligent reader.
-Summarize in 3 sentences in English.
+DEFAULT_PROMPT = """You are an AI news curator. Summarize in 3 sentences in English.
 Give concrete facts, explain the context, and say why it matters."""
 
 

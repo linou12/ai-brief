@@ -41,23 +41,23 @@ def _build_html(digest: dict, date_str: str, total: int) -> str:
         icon  = TOPIC_ICONS.get(topic, "•")
         cards = ""
         for item in items:
-            source_badge = f'<span style="background:#f0f0f0;padding:2px 8px;border-radius:12px;font-size:12px;color:#666">{item["source"]}</span>'
-            type_badge   = f'<span style="background:#e8f4fd;padding:2px 8px;border-radius:12px;font-size:12px;color:#1a73e8;margin-left:6px">{item["type"]}</span>'
-            stars        = f'<span style="margin-left:8px;font-size:12px;color:#f4a100">★ {item["stars"]:,}</span>' if item.get("stars") else ""
+            source_badge = f'<span style="background:#f0f0f0;padding:3px 10px;border-radius:12px;font-size:13px;color:#555">{item["source"]}</span>'
+            type_badge   = f'<span style="background:#e8f4fd;padding:3px 10px;border-radius:12px;font-size:13px;color:#1a73e8;margin-left:6px">{item["type"]}</span>'
+            stars        = f'<span style="margin-left:8px;font-size:13px;color:#f4a100">★ {item["stars"]:,}</span>' if item.get("stars") else ""
             cards += f"""
-            <div style="border:1px solid #eee;border-radius:10px;padding:16px 20px;margin-bottom:12px;background:#fff">
-                <div style="margin-bottom:8px">{source_badge}{type_badge}{stars}</div>
-                <a href="{item['url']}" style="font-size:16px;font-weight:600;color:#111;text-decoration:none;line-height:1.4">
+            <div style="border:1px solid #eee;border-radius:10px;padding:18px 22px;margin-bottom:14px;background:#fff">
+                <div style="margin-bottom:10px">{source_badge}{type_badge}{stars}</div>
+                <a href="{item['url']}" style="font-size:19px;font-weight:700;color:#111;text-decoration:none;line-height:1.4;display:block">
                     {item['title']}
                 </a>
-                <p style="margin:10px 0 0;font-size:14px;color:#444;line-height:1.6">
+                <p style="margin:12px 0 0;font-size:16px;color:#444;line-height:1.7">
                     {item.get('ai_summary') or item.get('summary','')[:200]}
                 </p>
             </div>"""
 
         sections += f"""
-        <div style="margin-bottom:32px">
-            <h2 style="font-size:18px;font-weight:700;color:#111;margin:0 0 14px;padding-bottom:8px;border-bottom:2px solid #f0f0f0">
+        <div style="margin-bottom:36px">
+            <h2 style="font-size:21px;font-weight:700;color:#111;margin:0 0 16px;padding-bottom:10px;border-bottom:2px solid #f0f0f0">
                 {icon} {label}
             </h2>
             {cards}
